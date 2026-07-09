@@ -172,11 +172,40 @@ st.markdown(f"""
 {bg_css}
 
 .block-container {{
-    padding-top: 1.2rem !important;
-    padding-bottom: 3rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
+    padding-top: 1rem !important;
+    padding-bottom: 4rem !important;
+    padding-left: 0.8rem !important;
+    padding-right: 0.8rem !important;
     max-width: 600px;
+}}
+
+@media (max-width: 480px) {{
+    .block-container {{
+        padding-left: 0.6rem !important;
+        padding-right: 0.6rem !important;
+    }}
+    h1 {{
+        font-size: 28px !important;
+    }}
+    h2 {{
+        font-size: 20px !important;
+    }}
+    div.stButton > button {{
+        min-height: 56px !important;
+        font-size: 17px !important;
+    }}
+    .card-box {{
+        padding: 16px 12px !important;
+    }}
+    .geber-badge {{
+        font-size: 17px !important;
+        padding: 8px 16px !important;
+    }}
+}}
+
+html, body {{
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
 }}
 
 div.stButton > button {{
@@ -285,8 +314,8 @@ div[class*="st-key-tile_"] button {{
     width: 100% !important;
     aspect-ratio: 1 / 1 !important;
     height: auto !important;
-    min-height: 60px !important;
-    font-size: 22px !important;
+    min-height: 68px !important;
+    font-size: 28px !important;
     font-weight: 800 !important;
     letter-spacing: 0.5px;
     color: #333 !important;
@@ -300,8 +329,8 @@ div[class*="st-key-tilesel_"] button {{
     width: 100% !important;
     aspect-ratio: 1 / 1 !important;
     height: auto !important;
-    min-height: 60px !important;
-    font-size: 16px !important;
+    min-height: 68px !important;
+    font-size: 20px !important;
     font-weight: 800 !important;
     color: #ffffff !important;
     background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
@@ -319,6 +348,20 @@ div[class*="st-key-tilesel_"] button {{
     margin: 3px 0 8px 0;
     padding: 0;
     white-space: nowrap;
+}}
+
+@media (max-width: 480px) {{
+    div[class*="st-key-tile_"] button {{
+        font-size: 24px !important;
+        min-height: 58px !important;
+    }}
+    div[class*="st-key-tilesel_"] button {{
+        font-size: 17px !important;
+        min-height: 58px !important;
+    }}
+    .player-name {{
+        font-size: 11px;
+    }}
 }}
 
 .summary-box {{
@@ -506,10 +549,13 @@ elif st.session_state.page == "neues_spiel":
         geber = teilnehmer[st.session_state.geber_index]
 
         st.markdown(f"<h2>Runde {st.session_state.runde_nr}</h2>", unsafe_allow_html=True)
-        st.markdown('<div class="card-box" style="text-align:center;">', unsafe_allow_html=True)
-        st.markdown(f'<span class="geber-badge">\U0001F3B4 Geber: {geber}</span>', unsafe_allow_html=True)
-        st.markdown(f"<p style='color:#555;'>Teilnehmer: {', '.join(teilnehmer)}</p>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown(
+            f'<div class="card-box" style="text-align:center;">'
+            f'<span class="geber-badge">\U0001F3B4 Geber: {geber}</span>'
+            f"<p style='color:#555; margin:0;'>Teilnehmer: {', '.join(teilnehmer)}</p>"
+            f'</div>',
+            unsafe_allow_html=True
+        )
 
         if st.button("\u2705  Spiel vorbei", key="btn_spiel_vorbei"):
             st.session_state.phase = "spiel_auswertung"
