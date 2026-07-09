@@ -310,34 +310,36 @@ div[data-testid="stHorizontalBlock"] {{
 }}
 
 /* Spieler-Kacheln mit Kuerzel als "Icon" */
-div[class*="st-key-tile_"] button {{
+div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
     width: 100% !important;
     aspect-ratio: 1 / 1 !important;
     height: auto !important;
-    min-height: 68px !important;
-    font-size: 28px !important;
-    font-weight: 800 !important;
-    letter-spacing: 0.5px;
+    min-height: 72px !important;
+    padding: 0 !important;
+    line-height: 1 !important;
+    border-radius: 16px !important;
+    margin: 0 auto !important;
+}}
+div[class*="st-key-tile_"] button p, div[class*="st-key-tilesel_"] button p {{
+    font-size: 42px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    letter-spacing: -1px;
+}}
+div[class*="st-key-tile_"] button {{
     color: #333 !important;
     background: #ffffff !important;
     border: 2.5px solid rgba(0,0,0,0.1) !important;
-    border-radius: 16px !important;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
-    margin: 0 auto !important;
 }}
 div[class*="st-key-tilesel_"] button {{
-    width: 100% !important;
-    aspect-ratio: 1 / 1 !important;
-    height: auto !important;
-    min-height: 68px !important;
-    font-size: 20px !important;
-    font-weight: 800 !important;
     color: #ffffff !important;
     background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
     border: 2.5px solid #E23636 !important;
-    border-radius: 16px !important;
     box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
-    margin: 0 auto !important;
+}}
+div[class*="st-key-tilesel_"] button p {{
+    font-size: 26px !important;
 }}
 
 .player-name {{
@@ -350,14 +352,20 @@ div[class*="st-key-tilesel_"] button {{
     white-space: nowrap;
 }}
 
+div[class*="st-key-box_letzte_runde"] {{
+    background: rgba(255,255,255,0.95);
+    border-radius: 16px;
+    padding: 14px 16px;
+    margin: 0.8rem 0;
+    border: 2px dashed #F4A24A;
+}}
+
 @media (max-width: 480px) {{
-    div[class*="st-key-tile_"] button {{
-        font-size: 24px !important;
-        min-height: 58px !important;
+    div[class*="st-key-tile_"] button p, div[class*="st-key-tilesel_"] button p {{
+        font-size: 34px !important;
     }}
-    div[class*="st-key-tilesel_"] button {{
-        font-size: 17px !important;
-        min-height: 58px !important;
+    div[class*="st-key-tilesel_"] button p {{
+        font-size: 22px !important;
     }}
     .player-name {{
         font-size: 11px;
@@ -432,16 +440,18 @@ def zeige_abend_zwischenstand(abend_id, teilnehmer):
     df = pd.DataFrame(rows)
     stand = df.groupby("Spieler")["Punkte"].sum().reindex(teilnehmer).fillna(0).astype(int)
     stand = stand.sort_values(ascending=False)
-    st.markdown('<div class="summary-box">', unsafe_allow_html=True)
-    st.markdown("<p style='font-weight:700; text-align:center; margin-bottom:6px;'>\U0001F4CB Aktueller Punktestand</p>", unsafe_allow_html=True)
+    rows_html = ""
     for name, punkte in stand.items():
         vorzeichen = "+" if punkte > 0 else ""
         farbe = "#2E7D32" if punkte > 0 else ("#C62828" if punkte < 0 else "#555")
-        st.markdown(
-            f'<div class="abend-stand-row"><span>{name}</span><span style="color:{farbe}; font-weight:700;">{vorzeichen}{punkte}</span></div>',
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+        rows_html += f'<div class="abend-stand-row"><span>{name}</span><span style="color:{farbe}; font-weight:700;">{vorzeichen}{punkte}</span></div>'
+    st.markdown(
+        f'<div class="summary-box">'
+        f'<p style="font-weight:700; text-align:center; margin-bottom:6px;">\U0001F4CB Aktueller Punktestand</p>'
+        f'{rows_html}'
+        f'</div>',
+        unsafe_allow_html=True
+    )
     return stand
 
 # =========================================================
@@ -565,20 +575,19 @@ elif st.session_state.page == "neues_spiel":
             st.rerun()
 
         if st.session_state.letztes_spiel_id is not None and st.session_state.letzte_zusammenfassung:
-            st.markdown('<div class="summary-box">', unsafe_allow_html=True)
-            st.caption(f"\u2139\ufe0f Zuletzt gespeichert: {st.session_state.letzte_zusammenfassung}")
-            if st.button("\U0001F5D1\uFE0F  Letzte Runde l\u00f6schen", key="delete_last_round"):
-                with st.spinner("L\u00f6sche letzte Runde..."):
-                    delete_spiel(st.session_state.letztes_spiel_id)
-                st.session_state.gespeicherte_runden.discard(st.session_state.runde_nr - 1)
-                st.session_state.letztes_spiel_id = None
-                st.session_state.letzte_zusammenfassung = None
-                st.session_state.runde_nr = max(1, st.session_state.runde_nr - 1)
-                st.session_state.geber_index = (st.session_state.geber_index - 1) % len(teilnehmer)
-                save_live_state()
-                st.success("Letzte Runde gel\u00f6scht.")
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(key="box_letzte_runde"):
+                st.markdown(f"<p style='margin:0 0 8px 0; font-size:14px; color:#555;'>\u2139\ufe0f Zuletzt gespeichert: {st.session_state.letzte_zusammenfassung}</p>", unsafe_allow_html=True)
+                if st.button("\U0001F5D1\uFE0F  Letzte Runde l\u00f6schen", key="delete_last_round"):
+                    with st.spinner("L\u00f6sche letzte Runde..."):
+                        delete_spiel(st.session_state.letztes_spiel_id)
+                    st.session_state.gespeicherte_runden.discard(st.session_state.runde_nr - 1)
+                    st.session_state.letztes_spiel_id = None
+                    st.session_state.letzte_zusammenfassung = None
+                    st.session_state.runde_nr = max(1, st.session_state.runde_nr - 1)
+                    st.session_state.geber_index = (st.session_state.geber_index - 1) % len(teilnehmer)
+                    save_live_state()
+                    st.success("Letzte Runde gel\u00f6scht.")
+                    st.rerun()
 
         zeige_abend_zwischenstand(st.session_state.abend_id, teilnehmer)
 
