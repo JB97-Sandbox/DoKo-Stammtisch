@@ -6,21 +6,6 @@ from supabase import create_client, Client
 
 st.set_page_config(page_title="Stammtisch Punkte", page_icon="\U0001F0CF", layout="centered")
 
-ICON_OPTIONS = ["\U0001F464","\U0001F600","\U0001F60E","\U0001F913","\U0001F975",
-                "\U0001F921","\U0001F47B","\U0001F916","\U0001F42F","\U0001F43A",
-                "\U0001F984","\U0001F989","\U0001F995","\U0001F47D","\U0001F480",
-                "\U0001F3B2","\U0001F0CF","\u2694\uFE0F","\U0001F37A","\U0001F355",
-                "\U0001F525","\u26A1","\U0001F3AF","\U0001F430","\U0001F43B",
-                "\U0001F98A","\U0001F42D","\U0001F438","\U0001F419","\U0001F42C",
-                "\U0001F999","\U0001F992","\U0001F998","\U0001F996","\U0001F47E",
-                "\U0001F385","\U0001F9DB","\U0001F9DD",
-                "\U0001F9DF","\U0001F9DE","\U0001F477","\U0001F473",
-                "\U0001F9B8","\U0001F9B9","\U0001F935",
-                "\U0001F934","\U0001F451","\U0001F3C6","\U0001F947","\u2B50",
-                "\U0001F308","\U0001F339","\U0001F340","\U0001F942","\U0001F37B",
-                "\U0001F37F","\U0001F369","\U0001F36D","\U0001F52B","\U0001F3B8",
-                "\U0001F3B9","\U0001F3AE","\U0001F3B0"]
-
 QUICK_PUNKTWERTE = [1, 2, 3, 4, 5, 10]
 
 @st.cache_resource
@@ -34,10 +19,7 @@ supabase = get_client()
 def load_spieler():
     res = supabase.table("spieler").select("*").execute()
     df = pd.DataFrame(res.data)
-    if not df.empty and "icon" not in df.columns:
-        df["icon"] = "\U0001F464"
     if not df.empty:
-        df["icon"] = df["icon"].fillna("\U0001F464")
         df = df.sort_values(by="name", key=lambda col: col.str.casefold()).reset_index(drop=True)
     return df
 
@@ -49,11 +31,8 @@ def load_ergebnisse_fuer_abend(abend_id: int):
     res = supabase.table("ergebnis").select("*, spiel!inner(*), spieler(*)").eq("spiel.spielabend_id", abend_id).execute()
     return res.data
 
-def add_spieler(name: str, icon: str = "\U0001F464"):
-    supabase.table("spieler").insert({"name": name, "icon": icon}).execute()
-
-def update_spieler_icon(spieler_id: int, icon: str):
-    supabase.table("spieler").update({"icon": icon}).eq("id", spieler_id).execute()
+def add_spieler(name: str):
+    supabase.table("spieler").insert({"name": name}).execute()
 
 def add_spielabend(datum: str, ort: str, spielart: str):
     res = supabase.table("spielabend").insert({"datum": datum, "ort": ort, "spielart": spielart}).execute()
@@ -109,7 +88,6 @@ def clear_live_state():
         pass
 
 def reset_alle_spieldaten():
-    """Loescht alle Ergebnisse, Spiele und Spielabende. Spieler und deren Icons bleiben erhalten."""
     supabase.table("ergebnis").delete().neq("id", -1).execute()
     supabase.table("spiel").delete().neq("id", -1).execute()
     supabase.table("spielabend").delete().neq("id", -1).execute()
@@ -133,7 +111,7 @@ check_password()
 
 defaults = {
     "page": "home", "abend_id": None, "spielart": None, "teilnehmer": [],
-    "geber_index": None, "runde_nr": 1, "phase": "setup", "icon_edit_id": None,
+    "geber_index": None, "runde_nr": 1, "phase": "setup",
     "letztes_spiel_id": None, "letzte_zusammenfassung": None,
     "live_state_restored": False, "live_state_dismissed": False,
     "gespeicherte_runden": set(), "abend_beendet_ansicht": False,
@@ -295,77 +273,34 @@ div[data-testid="stAlert"] {{
     width: 6px;
 }}
 
-div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
-    width: 100% !important;
-    aspect-ratio: 1 / 1 !important;
-    height: auto !important;
-    min-height: 60px !important;
-    font-size: 36px !important;
-    line-height: 1 !important;
-    padding: 0 !important;
-    border-radius: 16px !important;
-    background: rgba(255,255,255,0.9) !important;
-    color: #333 !important;
-    border: 2.5px solid rgba(0,0,0,0.08) !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.12) !important;
-    margin: 0 auto !important;
-}}
-div[class*="st-key-tilesel_"] button {{
-    border: 2.5px solid #E23636 !important;
-    background: rgba(255,225,225,0.98) !important;
-    box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
-}}
-
-.player-name {{
-    text-align: center;
-    font-size: 13px;
-    font-weight: 700;
-    color: #3A2E1F;
-    margin: 2px 0 8px 0;
-    padding: 0;
-    white-space: nowrap;
-}}
-.order-badge {{
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #FFD166 0%, #F4A24A 100%);
-    color: #3A2E1F;
-    font-weight: 800;
-    font-size: 13px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    margin-right: 5px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}}
-
 div[data-testid="stHorizontalBlock"] {{
     gap: 0.4rem !important;
 }}
 
-div[class*="st-key-iconopt_"] button {{
-    font-size: 32px !important;
-    min-height: 60px !important;
+/* Spieler-Namen-Buttons (Auswahl statt Emoji-Icons) */
+div[class*="st-key-namebtn_"] button {{
     width: 100% !important;
-    border-radius: 14px !important;
-    background: rgba(255,255,255,0.9) !important;
-    border: 2px solid transparent !important;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.12) !important;
+    min-height: 50px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    color: #222 !important;
+    background: #ffffff !important;
+    border: 2px solid rgba(0,0,0,0.12) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
+    margin: 0 !important;
 }}
-
-div[class*="st-key-quickpt_"] button {{
-    min-height: 56px !important;
-    font-size: 22px !important;
-    border-radius: 14px !important;
-}}
-div[class*="st-key-quickptactive_"] button {{
-    min-height: 56px !important;
-    font-size: 22px !important;
-    border-radius: 14px !important;
-    border: 3px solid #3A2E1F !important;
-    background: linear-gradient(135deg, #FFD166 0%, #F4A24A 100%) !important;
-    color: #3A2E1F !important;
+div[class*="st-key-namebtnsel_"] button {{
+    width: 100% !important;
+    min-height: 50px !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    color: #ffffff !important;
+    background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
+    border: 2px solid #E23636 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 6px rgba(226,54,54,0.35) !important;
+    margin: 0 !important;
 }}
 
 .summary-box {{
@@ -391,12 +326,12 @@ def show_back_button(label="\u2b05\ufe0f Zur\u00fcck", reset_game=False):
         go_to("home", reset_game=reset_game)
         st.rerun()
 
-def player_grid_selector(spieler_df, session_key, cols_per_row=4):
+def player_name_selector(names, session_key, cols_per_row=3):
+    """Zeigt Spielernamen als einfache Auswahl-Buttons (schwarz auf weiss) in Reihen.
+    Klick toggelt Auswahl. Zeigt Auswahlreihenfolge als Nummer im Button-Text."""
     if session_key not in st.session_state:
         st.session_state[session_key] = []
 
-    names = spieler_df["name"].tolist()
-    icons = dict(zip(spieler_df["name"], spieler_df["icon"]))
     order = {name: idx + 1 for idx, name in enumerate(st.session_state[session_key])}
 
     for row_start in range(0, len(names), cols_per_row):
@@ -405,21 +340,15 @@ def player_grid_selector(spieler_df, session_key, cols_per_row=4):
         for i, name in enumerate(row_names):
             with cols[i]:
                 selected = name in st.session_state[session_key]
-                tile_key = f"tilesel_{session_key}_{name}" if selected else f"tile_{session_key}_{name}"
-                with st.container(key=tile_key):
-                    if st.button(icons.get(name, "\U0001F464"), key=f"btn_{session_key}_{name}"):
+                key_prefix = "namebtnsel" if selected else "namebtn"
+                label = f"{order[name]}. {name}" if selected else name
+                with st.container(key=f"{key_prefix}_{session_key}_{name}"):
+                    if st.button(label, key=f"btn_{session_key}_{name}"):
                         if selected:
                             st.session_state[session_key].remove(name)
                         else:
                             st.session_state[session_key].append(name)
                         st.rerun()
-                if selected:
-                    st.markdown(
-                        f'<p class="player-name"><span class="order-badge">{order[name]}</span>{name}</p>',
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(f'<p class="player-name">{name}</p>', unsafe_allow_html=True)
 
     if st.session_state[session_key]:
         reihenfolge_text = " \u2192 ".join(
@@ -430,7 +359,6 @@ def player_grid_selector(spieler_df, session_key, cols_per_row=4):
     return st.session_state[session_key]
 
 def zeige_abend_zwischenstand(abend_id, teilnehmer):
-    """Zeigt eine laufende Zusammenfassung des aktuellen Spielabends (Punktestand je Spieler)."""
     if not abend_id:
         return
     daten = load_ergebnisse_fuer_abend(abend_id)
@@ -532,7 +460,7 @@ elif st.session_state.page == "neues_spiel":
             st.markdown("<p style='font-weight:600; text-align:center;'>Wer spielt mit?</p>", unsafe_allow_html=True)
             st.caption("Tippe auf die Spieler in der Reihenfolge, wie ihr sitzt (im Uhrzeigersinn).")
 
-            teilnehmer = player_grid_selector(spieler_df, "teilnehmer_auswahl", cols_per_row=4)
+            teilnehmer = player_name_selector(spieler_df["name"].tolist(), "teilnehmer_auswahl", cols_per_row=3)
             st.session_state.teilnehmer = teilnehmer
 
             ort = st.text_input("Ort (optional)", "")
@@ -617,48 +545,23 @@ elif st.session_state.page == "neues_spiel":
         punktwert = st.number_input("Oder eigenen Wert eingeben", min_value=0, step=1,
                                      key="punktwert_manual", disabled=bereits_gespeichert)
 
-        spieler_df_aw = load_spieler()
-        icons_aw = dict(zip(spieler_df_aw["name"], spieler_df_aw["icon"]))
-
         st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3C6 Wer hat gewonnen?</p>", unsafe_allow_html=True)
-        cols_per_row = 4
-        for row_start in range(0, len(teilnehmer), cols_per_row):
-            row_names = teilnehmer[row_start:row_start + cols_per_row]
-            cols = st.columns(cols_per_row)
-            for i, name in enumerate(row_names):
-                with cols[i]:
-                    selected = name in st.session_state.gewinner_auswahl
-                    tile_key = f"tilesel_gew_{name}" if selected else f"tile_gew_{name}"
-                    with st.container(key=tile_key):
-                        if st.button(icons_aw.get(name, "\U0001F464"), key=f"gewbtn_{name}", disabled=bereits_gespeichert):
-                            if selected:
-                                st.session_state.gewinner_auswahl.remove(name)
-                            else:
-                                st.session_state.gewinner_auswahl.append(name)
-                                if name in st.session_state.verlierer_auswahl:
-                                    st.session_state.verlierer_auswahl.remove(name)
-                            st.rerun()
-                    st.markdown(f'<p class="player-name">{"\u2705 " if selected else ""}{name}</p>', unsafe_allow_html=True)
-        gewinner = st.session_state.gewinner_auswahl
+        gewinner = player_name_selector(teilnehmer, "gewinner_auswahl", cols_per_row=3) if not bereits_gespeichert else st.session_state.gewinner_auswahl
+        if bereits_gespeichert:
+            st.write(", ".join(gewinner) if gewinner else "-")
+
+        for name in list(st.session_state.verlierer_auswahl):
+            if name in st.session_state.gewinner_auswahl:
+                st.session_state.verlierer_auswahl.remove(name)
 
         st.markdown("<p style='font-weight:600; text-align:center; margin-top:1rem;'>\U0001F614 Wer hat verloren?</p>", unsafe_allow_html=True)
         verlierer_optionen = [t for t in teilnehmer if t not in gewinner]
-        for row_start in range(0, len(verlierer_optionen), cols_per_row):
-            row_names = verlierer_optionen[row_start:row_start + cols_per_row]
-            cols = st.columns(cols_per_row)
-            for i, name in enumerate(row_names):
-                with cols[i]:
-                    selected = name in st.session_state.verlierer_auswahl
-                    tile_key = f"tilesel_verl_{name}" if selected else f"tile_verl_{name}"
-                    with st.container(key=tile_key):
-                        if st.button(icons_aw.get(name, "\U0001F464"), key=f"verlbtn_{name}", disabled=bereits_gespeichert):
-                            if selected:
-                                st.session_state.verlierer_auswahl.remove(name)
-                            else:
-                                st.session_state.verlierer_auswahl.append(name)
-                            st.rerun()
-                    st.markdown(f'<p class="player-name">{"\u2705 " if selected else ""}{name}</p>', unsafe_allow_html=True)
-        verlierer = [t for t in st.session_state.verlierer_auswahl if t in verlierer_optionen]
+        if not bereits_gespeichert:
+            verlierer = player_name_selector(verlierer_optionen, "verlierer_auswahl", cols_per_row=3)
+            verlierer = [t for t in verlierer if t in verlierer_optionen]
+        else:
+            verlierer = st.session_state.verlierer_auswahl
+            st.write(", ".join(verlierer) if verlierer else "-")
 
         if not bereits_gespeichert and (gewinner or verlierer):
             gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner) if gewinner else "-"
@@ -819,47 +722,20 @@ elif st.session_state.page == "spieler":
     spieler_df = load_spieler()
     if not spieler_df.empty:
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown("<p style='font-weight:600; text-align:center;'>Icon antippen, um es zu \u00e4ndern</p>", unsafe_allow_html=True)
-
+        st.markdown("<p style='font-weight:600; text-align:center;'>Aktuelle Spielerliste</p>", unsafe_allow_html=True)
         names = spieler_df["name"].tolist()
-        ids = dict(zip(spieler_df["name"], spieler_df["id"]))
-        icons = dict(zip(spieler_df["name"], spieler_df["icon"]))
-        cols_per_row = 4
-
+        cols_per_row = 3
         for row_start in range(0, len(names), cols_per_row):
             row_names = names[row_start:row_start + cols_per_row]
             cols = st.columns(cols_per_row)
             for i, name in enumerate(row_names):
                 with cols[i]:
-                    with st.container(key=f"tile_manage_{name}"):
-                        if st.button(icons.get(name, "\U0001F464"), key=f"iconbtn_{name}"):
-                            st.session_state.icon_edit_id = ids[name]
-                            st.rerun()
-                    st.markdown(f"<p class='player-name'>{name}</p>", unsafe_allow_html=True)
-
-        if st.session_state.icon_edit_id is not None:
-            edit_name = [n for n, i in ids.items() if i == st.session_state.icon_edit_id][0]
-            st.markdown(f"<p style='text-align:center; font-weight:600; margin-top:1rem;'>Neues Icon f\u00fcr {edit_name} w\u00e4hlen:</p>", unsafe_allow_html=True)
-            icon_cols_per_row = 5
-            for row_start in range(0, len(ICON_OPTIONS), icon_cols_per_row):
-                row_icons = ICON_OPTIONS[row_start:row_start + icon_cols_per_row]
-                icon_cols = st.columns(icon_cols_per_row)
-                for i, opt in enumerate(row_icons):
-                    with icon_cols[i]:
-                        with st.container(key=f"iconopt_{row_start+i}"):
-                            if st.button(opt, key=f"iconoptbtn_{row_start+i}"):
-                                with st.spinner("Speichere Icon..."):
-                                    update_spieler_icon(st.session_state.icon_edit_id, opt)
-                                st.session_state.icon_edit_id = None
-                                st.rerun()
-            if st.button("Abbrechen", key="cancel_icon_edit"):
-                st.session_state.icon_edit_id = None
-                st.rerun()
-
+                    with st.container(key=f"namebtn_liste_{name}"):
+                        st.button(name, key=f"nameonly_{name}", disabled=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with st.expander("\u26A0\uFE0F Testdaten zur\u00fccksetzen"):
-        st.caption("L\u00f6scht alle bisher gespeicherten Spielabende, Spiele und Ergebnisse unwiderruflich. Spieler und Icons bleiben erhalten.")
+        st.caption("L\u00f6scht alle bisher gespeicherten Spielabende, Spiele und Ergebnisse unwiderruflich. Spieler bleiben erhalten.")
         reset_pw = st.text_input("Passwort zum Best\u00e4tigen", type="password", key="reset_pw_input")
         bestaetigung = st.checkbox("Ich bin sicher, dass ich alle Spieldaten l\u00f6schen m\u00f6chte", key="confirm_reset")
         pw_korrekt = reset_pw == "Stammtisch"
