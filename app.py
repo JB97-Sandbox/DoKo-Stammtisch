@@ -343,11 +343,13 @@ div[class*="st-key-tilesel_"] button p {{
 }}
 
 .player-name {{
-    text-align: center;
+    text-align: center !important;
+    display: block !important;
+    width: 100% !important;
     font-size: 13px;
     font-weight: 600;
     color: #3A2E1F;
-    margin: 3px 0 8px 0;
+    margin: 3px auto 8px auto !important;
     padding: 0;
     white-space: nowrap;
 }}
@@ -358,6 +360,27 @@ div[class*="st-key-box_letzte_runde"] {{
     padding: 14px 16px;
     margin: 0.8rem 0;
     border: 2px dashed #F4A24A;
+}}
+
+div[class*="st-key-box_auswertung"] {{
+    background-color: rgba(255,255,255,0.94);
+    border-radius: 20px;
+    padding: 22px 18px;
+    margin-bottom: 1rem;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
+}}
+
+div[class*="st-key-box_setup_spielart"],
+div[class*="st-key-box_teilnehmer"],
+div[class*="st-key-box_rangliste"],
+div[class*="st-key-box_verlauf"],
+div[class*="st-key-box_add_spieler"],
+div[class*="st-key-box_spielerliste"] {{
+    background-color: rgba(255,255,255,0.94);
+    border-radius: 20px;
+    padding: 22px 18px;
+    margin-bottom: 1rem;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.12);
 }}
 
 @media (max-width: 480px) {{
@@ -508,24 +531,24 @@ elif st.session_state.page == "neues_spiel":
     if st.session_state.phase == "setup":
         show_back_button(reset_game=True)
         st.markdown("<h2>\U0001F3AE Neuer Spielabend</h2>", unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center; font-weight:600;'>Was wird heute gespielt?</p>", unsafe_allow_html=True)
-        if st.button("\U0001F0CF  Doppelkopf", key="btn_doko"):
-            st.session_state.spielart = "Doppelkopf"
-            st.session_state.phase = "teilnehmer"
-            st.session_state.teilnehmer_auswahl = []
-            st.rerun()
-        if st.button("\U0001F0A0  Skat", key="btn_skat"):
-            st.session_state.spielart = "Skat"
-            st.session_state.phase = "teilnehmer"
-            st.session_state.teilnehmer_auswahl = []
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(key="box_setup_spielart"):
+            st.markdown("<p style='text-align:center; font-weight:600;'>Was wird heute gespielt?</p>", unsafe_allow_html=True)
+            if st.button("\U0001F0CF  Doppelkopf", key="btn_doko"):
+                st.session_state.spielart = "Doppelkopf"
+                st.session_state.phase = "teilnehmer"
+                st.session_state.teilnehmer_auswahl = []
+                st.rerun()
+            if st.button("\U0001F0A0  Skat", key="btn_skat"):
+                st.session_state.spielart = "Skat"
+                st.session_state.phase = "teilnehmer"
+                st.session_state.teilnehmer_auswahl = []
+                st.rerun()
 
     elif st.session_state.phase == "teilnehmer":
         show_back_button(reset_game=True)
         st.markdown(f"<h2>{st.session_state.spielart}</h2>", unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
+        box_teilnehmer = st.container(key="box_teilnehmer")
+        box_teilnehmer.__enter__()
         spieler_df = load_spieler()
         if spieler_df.empty:
             st.warning("Bitte zuerst Spieler unter 'Spieler verwalten' anlegen.")
@@ -552,7 +575,7 @@ elif st.session_state.page == "neues_spiel":
                     st.rerun()
             else:
                 st.info("Bitte mindestens 3 Spieler ausw\u00e4hlen.")
-        st.markdown('</div>', unsafe_allow_html=True)
+        box_teilnehmer.__exit__(None, None, None)
 
     elif st.session_state.phase == "spiel_laeuft":
         teilnehmer = st.session_state.teilnehmer
@@ -602,7 +625,8 @@ elif st.session_state.page == "neues_spiel":
         bereits_gespeichert = st.session_state.runde_nr in st.session_state.gespeicherte_runden
 
         st.markdown(f"<h2>Auswertung Runde {st.session_state.runde_nr}</h2>", unsafe_allow_html=True)
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
+        aw_box = st.container(key="box_auswertung")
+        aw_box.__enter__()
 
         if "punktwert_manual" not in st.session_state:
             st.session_state.punktwert_manual = 0
@@ -644,9 +668,12 @@ elif st.session_state.page == "neues_spiel":
         if not bereits_gespeichert and (gewinner or verlierer):
             gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner) if gewinner else "-"
             verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer) if verlierer else "-"
-            st.markdown('<div class="summary-box">', unsafe_allow_html=True)
-            st.markdown(f"**Vorschau:** \U0001F3C6 {gew_text} &nbsp;|&nbsp; \U0001F614 {verl_text}")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="summary-box">'
+                f'<b>Vorschau:</b> \U0001F3C6 {gew_text} &nbsp;|&nbsp; \U0001F614 {verl_text}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
         col_save, col_back = st.columns(2)
         with col_save:
@@ -680,7 +707,7 @@ elif st.session_state.page == "neues_spiel":
                 st.session_state.verlierer_auswahl = []
                 st.rerun()
 
-        st.markdown('</div>', unsafe_allow_html=True)
+        aw_box.__exit__(None, None, None)
 
         zeige_abend_zwischenstand(st.session_state.abend_id, teilnehmer)
 
@@ -758,9 +785,8 @@ elif st.session_state.page == "statistik":
                 rangliste.columns = ["Spieler", "Punkte", "Runden", "\u00d8/Runde"]
                 rangliste = rangliste.sort_values("Punkte", ascending=False)
                 rangliste["\u00d8/Runde"] = rangliste["\u00d8/Runde"].round(1)
-                st.markdown('<div class="card-box">', unsafe_allow_html=True)
-                st.dataframe(rangliste, use_container_width=True, hide_index=True)
-                st.markdown('</div>', unsafe_allow_html=True)
+                with st.container(key="box_rangliste"):
+                    st.dataframe(rangliste, use_container_width=True, hide_index=True)
         else:
             st.info("Noch keine Ergebnisse erfasst.")
 
@@ -774,9 +800,8 @@ elif st.session_state.page == "statistik":
             verlauf = verlauf.sort_values("Datum")
             verlauf["Kumuliert"] = verlauf.groupby("Spieler")["Punkte"].cumsum()
             pivot = verlauf.pivot(index="Datum", columns="Spieler", values="Kumuliert").ffill()
-            st.markdown('<div class="card-box">', unsafe_allow_html=True)
-            st.line_chart(pivot)
-            st.markdown('</div>', unsafe_allow_html=True)
+            with st.container(key="box_verlauf"):
+                st.line_chart(pivot)
         else:
             st.info("Noch keine Daten f\u00fcr Verlauf vorhanden.")
 
@@ -787,41 +812,39 @@ elif st.session_state.page == "spieler":
     show_back_button()
     st.markdown("<h2>\U0001F465 Spieler verwalten</h2>", unsafe_allow_html=True)
 
-    st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    st.markdown("<p style='font-weight:600; text-align:center;'>Neuen Spieler hinzuf\u00fcgen</p>", unsafe_allow_html=True)
-    col_name, col_kuerzel = st.columns([2, 1])
-    with col_name:
-        neuer_name = st.text_input("Name", placeholder="z.B. Max", key="neuer_spieler_name")
-    with col_kuerzel:
-        neues_kuerzel = st.text_input("K\u00fcrzel", placeholder="z.B. MM", max_chars=4, key="neuer_spieler_kuerzel")
-    if st.button("\u2795  Spieler hinzuf\u00fcgen", key="btn_add_spieler"):
-        if not neuer_name.strip():
-            st.error("Bitte einen Namen eingeben.")
-        elif not neues_kuerzel.strip():
-            st.error("Bitte ein K\u00fcrzel eingeben.")
-        else:
-            with st.spinner("F\u00fcge Spieler hinzu..."):
-                add_spieler(neuer_name.strip(), neues_kuerzel.strip().upper())
-            st.success(f"{neuer_name} ({neues_kuerzel.strip().upper()}) hinzugef\u00fcgt!")
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.container(key="box_add_spieler"):
+        st.markdown("<p style='font-weight:600; text-align:center;'>Neuen Spieler hinzuf\u00fcgen</p>", unsafe_allow_html=True)
+        col_name, col_kuerzel = st.columns([2, 1])
+        with col_name:
+            neuer_name = st.text_input("Name", placeholder="z.B. Max", key="neuer_spieler_name")
+        with col_kuerzel:
+            neues_kuerzel = st.text_input("K\u00fcrzel", placeholder="z.B. MM", max_chars=4, key="neuer_spieler_kuerzel")
+        if st.button("\u2795  Spieler hinzuf\u00fcgen", key="btn_add_spieler"):
+            if not neuer_name.strip():
+                st.error("Bitte einen Namen eingeben.")
+            elif not neues_kuerzel.strip():
+                st.error("Bitte ein K\u00fcrzel eingeben.")
+            else:
+                with st.spinner("F\u00fcge Spieler hinzu..."):
+                    add_spieler(neuer_name.strip(), neues_kuerzel.strip().upper())
+                st.success(f"{neuer_name} ({neues_kuerzel.strip().upper()}) hinzugef\u00fcgt!")
+                st.rerun()
 
     spieler_df = load_spieler()
     if not spieler_df.empty:
-        st.markdown('<div class="card-box">', unsafe_allow_html=True)
-        st.markdown("<p style='font-weight:600; text-align:center;'>Aktuelle Spielerliste</p>", unsafe_allow_html=True)
-        names = spieler_df["name"].tolist()
-        kuerzel_map_liste = dict(zip(spieler_df["name"], spieler_df["kuerzel"]))
-        cols_per_row = 4
-        for row_start in range(0, len(names), cols_per_row):
-            row_names = names[row_start:row_start + cols_per_row]
-            cols = st.columns(cols_per_row)
-            for i, name in enumerate(row_names):
-                with cols[i]:
-                    with st.container(key=f"tile_liste_{name}"):
-                        st.button(kuerzel_map_liste.get(name, name[:2].upper()), key=f"nameonly_{name}", disabled=True)
-                    st.markdown(f"<p class='player-name'>{name}</p>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container(key="box_spielerliste"):
+            st.markdown("<p style='font-weight:600; text-align:center;'>Aktuelle Spielerliste</p>", unsafe_allow_html=True)
+            names = spieler_df["name"].tolist()
+            kuerzel_map_liste = dict(zip(spieler_df["name"], spieler_df["kuerzel"]))
+            cols_per_row = 4
+            for row_start in range(0, len(names), cols_per_row):
+                row_names = names[row_start:row_start + cols_per_row]
+                cols = st.columns(cols_per_row)
+                for i, name in enumerate(row_names):
+                    with cols[i]:
+                        with st.container(key=f"tile_liste_{name}"):
+                            st.button(kuerzel_map_liste.get(name, name[:2].upper()), key=f"nameonly_{name}", disabled=True)
+                        st.markdown(f"<p class='player-name'>{name}</p>", unsafe_allow_html=True)
 
     with st.expander("\u26A0\uFE0F Testdaten zur\u00fccksetzen"):
         st.caption("L\u00f6scht alle bisher gespeicherten Spielabende, Spiele und Ergebnisse unwiderruflich. Spieler bleiben erhalten.")
