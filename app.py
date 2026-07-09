@@ -130,6 +130,36 @@ if not st.session_state.live_state_restored and not st.session_state.live_state_
         st.session_state.pending_restore = _restored
     st.session_state.live_state_restored = True
 
+
+def render_punktwert_auswahl(bereits_gespeichert, label="Punktwert des Spiels"):
+    st.markdown(f"<p style='font-weight:600; text-align:center;'>{label}</p>", unsafe_allow_html=True)
+    quick_cols = st.columns(len(QUICK_PUNKTWERTE))
+    for i, val in enumerate(QUICK_PUNKTWERTE):
+        with quick_cols[i]:
+            active = st.session_state.punktwert_manual == val
+            key_prefix = "quickptactive" if active else "quickpt"
+            with st.container(key=f"{key_prefix}_{val}"):
+                if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
+                    st.session_state.punktwert_manual = val
+                    st.rerun()
+    return st.number_input("Oder eigenen Wert eingeben", min_value=0, step=1,
+                            key="punktwert_manual", disabled=bereits_gespeichert)
+
+
+def speichere_ergebnisse(abend_id, runde_nr, geber, punktwert, punkte_pro_spieler, zusammenfassung_text):
+    with st.spinner("Speichere Ergebnis..."):
+        spieler_df = load_spieler()
+        id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
+        spiel_id = add_spiel(abend_id, runde_nr, geber, int(punktwert))
+        for name, punkte in punkte_pro_spieler.items():
+            add_ergebnis(spiel_id, int(id_map[name]), int(punkte))
+    st.session_state.letztes_spiel_id = spiel_id
+    st.session_state.letzte_zusammenfassung = f"Runde {runde_nr}: {zusammenfassung_text}"
+    st.session_state.gespeicherte_runden.add(runde_nr)
+    save_live_state()
+    st.success("Ergebnis gespeichert!")
+    st.rerun()
+
 def go_to(page_name: str, reset_game: bool = False):
     st.session_state.page = page_name
     if reset_game:
@@ -143,6 +173,15 @@ def go_to(page_name: str, reset_game: bool = False):
         st.session_state.letzte_zusammenfassung = None
         st.session_state.gespeicherte_runden = set()
         st.session_state.abend_beendet_ansicht = False
+        st.session_state.gewinner_auswahl = []
+        st.session_state.verlierer_auswahl = []
+        st.session_state.alleinspieler_auswahl = []
+        if "alleinspieler_gewonnen" in st.session_state:
+            del st.session_state["alleinspieler_gewonnen"]
+        if "punktwert_manual" in st.session_state:
+            del st.session_state["punktwert_manual"]
+        if "teilnehmer_auswahl" in st.session_state:
+            st.session_state.teilnehmer_auswahl = []
         clear_live_state()
 
 @st.cache_data
@@ -410,6 +449,134 @@ div[class*="st-key-box_spielerliste"] {{
     font-size: 15px;
     border-bottom: 1px solid rgba(0,0,0,0.08);
 }}
+
+.abend-stand-row:last-child {{
+    border-bottom: none;
+}}
+
+/* Punktwert-Schnellauswahl: inaktiv = dezent, aktiv = hervorgehoben */
+div[class*="st-key-quickpt_"] button {{
+    background: #ffffff !important;
+    color: #3A2E1F !important;
+    border: 2px solid rgba(0,0,0,0.1) !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08) !important;
+}}
+div[class*="st-key-quickptactive_"] button {{
+    background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
+    color: #ffffff !important;
+    border: 2px solid #E23636 !important;
+    min-height: 48px !important;
+    font-size: 16px !important;
+    box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
+}}
+
+/* Skat Gewonnen/Verloren Toggle */
+div[class*="st-key-tile_skat_gewonnen"] button {{
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+    color: #ffffff !important;
+    border: 2px solid #2E7D32 !important;
+}}
+div[class*="st-key-tile_skat_verloren"] button {{
+    background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
+    color: #ffffff !important;
+    border: 2px solid #E23636 !important;
+}}
+div[class*="st-key-tile_skat_gewonnen_off"] button,
+div[class*="st-key-tile_skat_verloren_off"] button {{
+    background: #ffffff !important;
+    color: #3A2E1F !important;
+    border: 2px solid rgba(0,0,0,0.1) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08) !important;
+}}
+
+/* Sanftes Fade-in fuer Karten-Boxen */
+div[class*="st-key-box_"] {{
+    animation: fadeIn 0.25s ease-in-out;
+}}
+@keyframes fadeIn {{
+    from {{ opacity: 0; transform: translateY(4px); }}
+    to {{ opacity: 1; transform: translateY(0); }}
+}}
+
+/* Bessere Lesbarkeit der Erfolgsmeldungen */
+div[data-testid="stAlert"] p {{
+    font-size: 15px !important;
+    font-weight: 600 !important;
+}}
+
+/* Startseite: grosse, platzausfuellende Auswahlkacheln */
+div[class*="st-key-home_tile_"] {{
+    background-color: rgba(255,255,255,0.95);
+    border-radius: 22px;
+    padding: 20px 22px 16px 22px;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: transform 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}}
+div[class*="st-key-home_tile_"]:hover {{
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+}}
+
+.home-tile-content {{
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+}}
+.home-tile-icon {{
+    font-size: 40px;
+    line-height: 1;
+    flex-shrink: 0;
+}}
+.home-tile-title {{
+    display: block;
+    font-size: 21px;
+    font-weight: 800;
+    color: #3A2E1F;
+}}
+.home-tile-sub {{
+    display: block;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: #8A8070;
+    margin-top: 2px;
+}}
+.home-tile-content > span.home-tile-title,
+.home-tile-content > span.home-tile-sub {{
+    flex-basis: 100%;
+}}
+
+div[class*="st-key-home_tile_"] div.stButton > button {{
+    min-height: 52px !important;
+    font-size: 16px !important;
+    margin-bottom: 0 !important;
+}}
+
+div[class*="st-key-home_tile_neues_spiel"] div.stButton > button {{
+    background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
+}}
+div[class*="st-key-home_tile_statistik"] div.stButton > button {{
+    background: linear-gradient(135deg, #4A90D9 0%, #2E6FB0 100%) !important;
+}}
+div[class*="st-key-home_tile_spieler"] div.stButton > button {{
+    background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%) !important;
+}}
+
+@media (max-width: 480px) {{
+    div[class*="st-key-home_tile_"] {{
+        padding: 16px 16px 12px 16px;
+    }}
+    .home-tile-icon {{
+        font-size: 34px;
+    }}
+    .home-tile-title {{
+        font-size: 18px;
+    }}
+}}
 </style>
 """, unsafe_allow_html=True)
 
@@ -513,15 +680,41 @@ if st.session_state.page == "home":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    if st.button("\U0001F3AE  Neues Spiel", key="btn_neues_spiel"):
-        go_to("neues_spiel", reset_game=True)
-        st.rerun()
-    if st.button("\U0001F4CA  Statistik", key="btn_statistik"):
-        go_to("statistik")
-        st.rerun()
-    if st.button("\U0001F465  Spieler verwalten", key="btn_spieler"):
-        go_to("spieler")
-        st.rerun()
+    with st.container(key="home_tile_neues_spiel"):
+        st.markdown(
+            "<div class='home-tile-content'>"
+            "<span class='home-tile-icon'>\U0001F3AE</span>"
+            "<span class='home-tile-title'>Neues Spiel</span>"
+            "<span class='home-tile-sub'>Runde starten & Punkte erfassen</span>"
+            "</div>", unsafe_allow_html=True
+        )
+        if st.button("Neues Spiel starten", key="btn_neues_spiel"):
+            go_to("neues_spiel", reset_game=True)
+            st.rerun()
+
+    with st.container(key="home_tile_statistik"):
+        st.markdown(
+            "<div class='home-tile-content'>"
+            "<span class='home-tile-icon'>\U0001F4CA</span>"
+            "<span class='home-tile-title'>Statistik</span>"
+            "<span class='home-tile-sub'>Rangliste & Verlauf ansehen</span>"
+            "</div>", unsafe_allow_html=True
+        )
+        if st.button("Statistik ansehen", key="btn_statistik"):
+            go_to("statistik")
+            st.rerun()
+
+    with st.container(key="home_tile_spieler"):
+        st.markdown(
+            "<div class='home-tile-content'>"
+            "<span class='home-tile-icon'>\U0001F465</span>"
+            "<span class='home-tile-title'>Spieler verwalten</span>"
+            "<span class='home-tile-sub'>Spieler hinzuf\u00fcgen & bearbeiten</span>"
+            "</div>", unsafe_allow_html=True
+        )
+        if st.button("Spieler verwalten", key="btn_spieler"):
+            go_to("spieler")
+            st.rerun()
 
 # =========================================================
 # SEITE: Neues Spiel (mehrstufiger Ablauf)
@@ -638,19 +831,7 @@ elif st.session_state.page == "neues_spiel":
         if ist_skat:
             aktive_spieler = [t for t in teilnehmer if t != geber] if len(teilnehmer) == 4 else list(teilnehmer)
 
-            st.markdown("<p style='font-weight:600; text-align:center;'>Spielwert (Grundwert x Multiplikator)</p>", unsafe_allow_html=True)
-            quick_cols = st.columns(len(QUICK_PUNKTWERTE))
-            for i, val in enumerate(QUICK_PUNKTWERTE):
-                with quick_cols[i]:
-                    active = st.session_state.punktwert_manual == val
-                    key_prefix = "quickptactive" if active else "quickpt"
-                    with st.container(key=f"{key_prefix}_{val}"):
-                        if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
-                            st.session_state.punktwert_manual = val
-                            st.rerun()
-
-            punktwert = st.number_input("Oder eigenen Spielwert eingeben", min_value=0, step=1,
-                                         key="punktwert_manual", disabled=bereits_gespeichert)
+            punktwert = render_punktwert_auswahl(bereits_gespeichert, "Spielwert (Grundwert x Multiplikator)")
 
             st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3AF Wer war Alleinspieler?</p>", unsafe_allow_html=True)
             if "alleinspieler_auswahl" not in st.session_state:
@@ -681,21 +862,11 @@ elif st.session_state.page == "neues_spiel":
                         st.rerun()
 
             gewonnen_flag = st.session_state.alleinspieler_gewonnen
-            gegenspieler = [t for t in aktive_spieler if t != alleinspieler]
-
-            if alleinspieler:
-                if gewonnen_flag:
-                    punkte_alleinspieler = int(punktwert)
-                else:
-                    punkte_alleinspieler = -(2 * int(punktwert))
-            else:
-                punkte_alleinspieler = 0
+            punkte_alleinspieler = int(punktwert) if gewonnen_flag else -(2 * int(punktwert)) if alleinspieler else 0
 
             if not bereits_gespeichert and alleinspieler:
                 st.markdown(
-                    f'<div class="summary-box">'
-                    f'<b>Vorschau:</b> \U0001F3AF {alleinspieler} {"+" if punkte_alleinspieler >= 0 else ""}{punkte_alleinspieler}'
-                    f'</div>',
+                    f'<div class="summary-box"><b>Vorschau:</b> \U0001F3AF {alleinspieler} {"+" if punkte_alleinspieler >= 0 else ""}{punkte_alleinspieler}</div>',
                     unsafe_allow_html=True
                 )
 
@@ -705,20 +876,9 @@ elif st.session_state.page == "neues_spiel":
                     if not alleinspieler:
                         st.error("Bitte einen Alleinspieler ausw\u00e4hlen.")
                     else:
-                        with st.spinner("Speichere Ergebnis..."):
-                            spieler_df = load_spieler()
-                            id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
-                            spiel_id = add_spiel(st.session_state.abend_id, st.session_state.runde_nr, geber, int(punktwert))
-                            add_ergebnis(spiel_id, int(id_map[alleinspieler]), int(punkte_alleinspieler))
-                            for name in teilnehmer:
-                                if name != alleinspieler:
-                                    add_ergebnis(spiel_id, int(id_map[name]), 0)
-                        st.session_state.letztes_spiel_id = spiel_id
-                        st.session_state.letzte_zusammenfassung = f"Runde {st.session_state.runde_nr}: \U0001F3AF {alleinspieler} {'+' if punkte_alleinspieler >= 0 else ''}{punkte_alleinspieler}"
-                        st.session_state.gespeicherte_runden.add(st.session_state.runde_nr)
-                        save_live_state()
-                        st.success("Ergebnis gespeichert!")
-                        st.rerun()
+                        punkte_pro_spieler = {name: (punkte_alleinspieler if name == alleinspieler else 0) for name in teilnehmer}
+                        zsf = f"\U0001F3AF {alleinspieler} {'+' if punkte_alleinspieler >= 0 else ''}{punkte_alleinspieler}"
+                        speichere_ergebnisse(st.session_state.abend_id, st.session_state.runde_nr, geber, punktwert, punkte_pro_spieler, zsf)
             with col_back:
                 if st.button("\u21a9\ufe0f  Zur\u00fcck", key="btn_zurueck_zu_spiel", disabled=bereits_gespeichert):
                     st.session_state.phase = "spiel_laeuft"
@@ -726,19 +886,7 @@ elif st.session_state.page == "neues_spiel":
                     st.rerun()
 
         else:
-            st.markdown("<p style='font-weight:600; text-align:center;'>Punktwert des Spiels</p>", unsafe_allow_html=True)
-            quick_cols = st.columns(len(QUICK_PUNKTWERTE))
-            for i, val in enumerate(QUICK_PUNKTWERTE):
-                with quick_cols[i]:
-                    active = st.session_state.punktwert_manual == val
-                    key_prefix = "quickptactive" if active else "quickpt"
-                    with st.container(key=f"{key_prefix}_{val}"):
-                        if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
-                            st.session_state.punktwert_manual = val
-                            st.rerun()
-
-            punktwert = st.number_input("Oder eigenen Wert eingeben", min_value=0, step=1,
-                                         key="punktwert_manual", disabled=bereits_gespeichert)
+            punktwert = render_punktwert_auswahl(bereits_gespeichert, "Punktwert des Spiels")
 
             st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3C6 Wer hat gewonnen?</p>", unsafe_allow_html=True)
             gewinner = player_name_selector(teilnehmer, kuerzel_map_aw, "gewinner_auswahl", cols_per_row=4, show_reihenfolge=False) if not bereits_gespeichert else st.session_state.gewinner_auswahl
@@ -774,25 +922,18 @@ elif st.session_state.page == "neues_spiel":
                     if not gewinner or not verlierer:
                         st.error("Bitte mindestens einen Gewinner und einen Verlierer ausw\u00e4hlen.")
                     else:
+                        punkte_pro_spieler = {}
+                        for name in gewinner:
+                            punkte_pro_spieler[name] = int(punktwert)
+                        for name in verlierer:
+                            punkte_pro_spieler[name] = -int(punktwert)
+                        for name in teilnehmer:
+                            if name not in punkte_pro_spieler:
+                                punkte_pro_spieler[name] = 0
                         gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner)
                         verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer)
-                        with st.spinner("Speichere Ergebnis..."):
-                            spieler_df = load_spieler()
-                            id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
-                            spiel_id = add_spiel(st.session_state.abend_id, st.session_state.runde_nr, geber, int(punktwert))
-                            for name in gewinner:
-                                add_ergebnis(spiel_id, int(id_map[name]), int(punktwert))
-                            for name in verlierer:
-                                add_ergebnis(spiel_id, int(id_map[name]), -int(punktwert))
-                            for name in teilnehmer:
-                                if name not in gewinner and name not in verlierer:
-                                    add_ergebnis(spiel_id, int(id_map[name]), 0)
-                        st.session_state.letztes_spiel_id = spiel_id
-                        st.session_state.letzte_zusammenfassung = f"Runde {st.session_state.runde_nr}: \U0001F3C6 {gew_text} | \U0001F614 {verl_text}"
-                        st.session_state.gespeicherte_runden.add(st.session_state.runde_nr)
-                        save_live_state()
-                        st.success("Ergebnis gespeichert!")
-                        st.rerun()
+                        zsf = f"\U0001F3C6 {gew_text} | \U0001F614 {verl_text}"
+                        speichere_ergebnisse(st.session_state.abend_id, st.session_state.runde_nr, geber, punktwert, punkte_pro_spieler, zsf)
             with col_back:
                 if st.button("\u21a9\ufe0f  Zur\u00fcck", key="btn_zurueck_zu_spiel", disabled=bereits_gespeichert):
                     st.session_state.phase = "spiel_laeuft"
@@ -817,6 +958,8 @@ elif st.session_state.page == "neues_spiel":
                     st.session_state.alleinspieler_auswahl = []
                     if "punktwert_manual" in st.session_state:
                         del st.session_state["punktwert_manual"]
+                    if "alleinspieler_gewonnen" in st.session_state:
+                        del st.session_state["alleinspieler_gewonnen"]
                     save_live_state()
                     st.rerun()
             with col_nein:
