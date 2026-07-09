@@ -32,12 +32,13 @@ def get_client() -> Client:
 supabase = get_client()
 
 def load_spieler():
-    res = supabase.table("spieler").select("*").order("name").execute()
+    res = supabase.table("spieler").select("*").execute()
     df = pd.DataFrame(res.data)
     if not df.empty and "icon" not in df.columns:
         df["icon"] = "\U0001F464"
     if not df.empty:
         df["icon"] = df["icon"].fillna("\U0001F464")
+        df = df.sort_values(by="name", key=lambda col: col.str.casefold()).reset_index(drop=True)
     return df
 
 def load_ergebnisse():
@@ -294,39 +295,43 @@ div[data-testid="stAlert"] {{
     width: 6px;
 }}
 
-div[class*="st-key-tile_"] button {{
-    width: 100% !important;
-    min-height: 96px !important;
-    font-size: 52px !important;
+div[class*="st-key-tile_"], div[class*="st-key-tilesel_"] {{
+    display: flex !important;
+    justify-content: center !important;
+}}
+div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
+    width: 68px !important;
+    height: 68px !important;
+    min-height: 68px !important;
+    max-width: 68px !important;
+    font-size: 38px !important;
     line-height: 1 !important;
-    padding: 4px !important;
-    border-radius: 18px !important;
-    background: rgba(255,255,255,0.85) !important;
+    padding: 0 !important;
+    border-radius: 16px !important;
+    background: rgba(255,255,255,0.9) !important;
     color: #333 !important;
-    border: 3px solid transparent !important;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
-    margin-bottom: 0.1rem !important;
+    border: 2.5px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.12) !important;
+    margin: 0 auto 2px auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }}
 div[class*="st-key-tilesel_"] button {{
-    width: 100% !important;
-    min-height: 96px !important;
-    font-size: 52px !important;
-    line-height: 1 !important;
-    padding: 4px !important;
-    border-radius: 18px !important;
-    border: 3px solid #E23636 !important;
-    background: rgba(255,235,235,0.95) !important;
-    box-shadow: 0 0 0 4px rgba(226,54,54,0.25) !important;
-    margin-bottom: 0.1rem !important;
+    border: 2.5px solid #E23636 !important;
+    background: rgba(255,225,225,0.98) !important;
+    box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
+    transform: scale(1.05);
 }}
 
 .player-name {{
     text-align: center;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: #3A2E1F;
-    margin-top: -4px;
-    margin-bottom: 10px;
+    margin-top: 2px;
+    margin-bottom: 4px;
+    white-space: nowrap;
 }}
 .order-badge {{
     display: inline-flex;
@@ -341,6 +346,10 @@ div[class*="st-key-tilesel_"] button {{
     border-radius: 50%;
     margin-right: 5px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}}
+
+div[data-testid="stHorizontalBlock"] {{
+    gap: 0.3rem !important;
 }}
 
 div[class*="st-key-iconopt_"] button {{
@@ -857,8 +866,12 @@ elif st.session_state.page == "spieler":
 
     with st.expander("\u26A0\uFE0F Testdaten zur\u00fccksetzen"):
         st.caption("L\u00f6scht alle bisher gespeicherten Spielabende, Spiele und Ergebnisse unwiderruflich. Spieler und Icons bleiben erhalten.")
+        reset_pw = st.text_input("Passwort zum Best\u00e4tigen", type="password", key="reset_pw_input")
         bestaetigung = st.checkbox("Ich bin sicher, dass ich alle Spieldaten l\u00f6schen m\u00f6chte", key="confirm_reset")
-        if st.button("\U0001F5D1\uFE0F  Alle Spieldaten l\u00f6schen", key="btn_reset_data", disabled=not bestaetigung):
+        pw_korrekt = reset_pw == "Stammtisch"
+        if reset_pw and not pw_korrekt:
+            st.error("Falsches Passwort.")
+        if st.button("\U0001F5D1\uFE0F  Alle Spieldaten l\u00f6schen", key="btn_reset_data", disabled=not (bestaetigung and pw_korrekt)):
             with st.spinner("L\u00f6sche alle Spieldaten..."):
                 reset_alle_spieldaten()
             st.session_state.confirm_reset = False
