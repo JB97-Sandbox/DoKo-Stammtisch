@@ -295,15 +295,12 @@ div[data-testid="stAlert"] {{
     width: 6px;
 }}
 
-div[class*="st-key-tile_"], div[class*="st-key-tilesel_"] {{
-    width: 100% !important;
-}}
 div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
     width: 100% !important;
     aspect-ratio: 1 / 1 !important;
     height: auto !important;
-    min-height: 0 !important;
-    font-size: min(11vw, 44px) !important;
+    min-height: 60px !important;
+    font-size: 36px !important;
     line-height: 1 !important;
     padding: 0 !important;
     border-radius: 16px !important;
@@ -311,10 +308,7 @@ div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
     color: #333 !important;
     border: 2.5px solid rgba(0,0,0,0.08) !important;
     box-shadow: 0 2px 5px rgba(0,0,0,0.12) !important;
-    margin: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    margin: 0 auto !important;
 }}
 div[class*="st-key-tilesel_"] button {{
     border: 2.5px solid #E23636 !important;
@@ -323,14 +317,13 @@ div[class*="st-key-tilesel_"] button {{
 }}
 
 .player-name {{
-    text-align: center !important;
+    text-align: center;
     font-size: 13px;
     font-weight: 700;
     color: #3A2E1F;
-    margin: 2px 0 8px 0 !important;
-    padding: 0 !important;
+    margin: 2px 0 8px 0;
+    padding: 0;
     white-space: nowrap;
-    width: 100% !important;
 }}
 .order-badge {{
     display: inline-flex;
@@ -349,20 +342,6 @@ div[class*="st-key-tilesel_"] button {{
 
 div[data-testid="stHorizontalBlock"] {{
     gap: 0.4rem !important;
-}}
-div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {{
-    margin-bottom: 0 !important;
-}}
-div[data-testid="column"] {{
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-}}
-div[data-testid="column"] > div {{
-    width: 100% !important;
-}}
-div[data-testid="stMarkdownContainer"] p {{
-    margin: 0 !important;
 }}
 
 div[class*="st-key-iconopt_"] button {{
@@ -585,7 +564,8 @@ elif st.session_state.page == "neues_spiel":
 
         if st.button("\u2705  Spiel vorbei", key="btn_spiel_vorbei"):
             st.session_state.phase = "spiel_auswertung"
-            st.session_state.punktwert_manual = 0
+            if "punktwert_manual" in st.session_state:
+                del st.session_state["punktwert_manual"]
             save_live_state()
             st.rerun()
 
@@ -733,7 +713,8 @@ elif st.session_state.page == "neues_spiel":
                     st.session_state.phase = "spiel_laeuft"
                     st.session_state.gewinner_auswahl = []
                     st.session_state.verlierer_auswahl = []
-                    st.session_state.punktwert_manual = 0
+                    if "punktwert_manual" in st.session_state:
+                        del st.session_state["punktwert_manual"]
                     save_live_state()
                     st.rerun()
             with col_nein:
@@ -887,6 +868,9 @@ elif st.session_state.page == "spieler":
         if st.button("\U0001F5D1\uFE0F  Alle Spieldaten l\u00f6schen", key="btn_reset_data", disabled=not (bestaetigung and pw_korrekt)):
             with st.spinner("L\u00f6sche alle Spieldaten..."):
                 reset_alle_spieldaten()
-            st.session_state.confirm_reset = False
+            if "confirm_reset" in st.session_state:
+                del st.session_state["confirm_reset"]
+            if "reset_pw_input" in st.session_state:
+                del st.session_state["reset_pw_input"]
             st.success("Alle Spieldaten wurden gel\u00f6scht.")
             st.rerun()
