@@ -296,15 +296,14 @@ div[data-testid="stAlert"] {{
 }}
 
 div[class*="st-key-tile_"], div[class*="st-key-tilesel_"] {{
-    display: flex !important;
-    justify-content: center !important;
+    width: 100% !important;
 }}
 div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
-    width: 68px !important;
-    height: 68px !important;
-    min-height: 68px !important;
-    max-width: 68px !important;
-    font-size: 38px !important;
+    width: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: min(11vw, 44px) !important;
     line-height: 1 !important;
     padding: 0 !important;
     border-radius: 16px !important;
@@ -312,7 +311,7 @@ div[class*="st-key-tile_"] button, div[class*="st-key-tilesel_"] button {{
     color: #333 !important;
     border: 2.5px solid rgba(0,0,0,0.08) !important;
     box-shadow: 0 2px 5px rgba(0,0,0,0.12) !important;
-    margin: 0 auto 2px auto !important;
+    margin: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -321,17 +320,17 @@ div[class*="st-key-tilesel_"] button {{
     border: 2.5px solid #E23636 !important;
     background: rgba(255,225,225,0.98) !important;
     box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
-    transform: scale(1.05);
 }}
 
 .player-name {{
-    text-align: center;
+    text-align: center !important;
     font-size: 13px;
     font-weight: 700;
     color: #3A2E1F;
-    margin-top: 2px;
-    margin-bottom: 4px;
+    margin: 2px 0 8px 0 !important;
+    padding: 0 !important;
     white-space: nowrap;
+    width: 100% !important;
 }}
 .order-badge {{
     display: inline-flex;
@@ -349,7 +348,21 @@ div[class*="st-key-tilesel_"] button {{
 }}
 
 div[data-testid="stHorizontalBlock"] {{
-    gap: 0.3rem !important;
+    gap: 0.4rem !important;
+}}
+div[data-testid="stVerticalBlock"] div[data-testid="stVerticalBlockBorderWrapper"] {{
+    margin-bottom: 0 !important;
+}}
+div[data-testid="column"] {{
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+}}
+div[data-testid="column"] > div {{
+    width: 100% !important;
+}}
+div[data-testid="stMarkdownContainer"] p {{
+    margin: 0 !important;
 }}
 
 div[class*="st-key-iconopt_"] button {{
