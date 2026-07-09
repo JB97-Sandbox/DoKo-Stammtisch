@@ -20,6 +20,9 @@ def load_spieler():
     res = supabase.table("spieler").select("*").execute()
     df = pd.DataFrame(res.data)
     if not df.empty:
+        if "kuerzel" not in df.columns:
+            df["kuerzel"] = df["name"].str[:2].str.upper()
+        df["kuerzel"] = df["kuerzel"].fillna(df["name"].str[:2].str.upper())
         df = df.sort_values(by="name", key=lambda col: col.str.casefold()).reset_index(drop=True)
     return df
 
@@ -31,8 +34,8 @@ def load_ergebnisse_fuer_abend(abend_id: int):
     res = supabase.table("ergebnis").select("*, spiel!inner(*), spieler(*)").eq("spiel.spielabend_id", abend_id).execute()
     return res.data
 
-def add_spieler(name: str):
-    supabase.table("spieler").insert({"name": name}).execute()
+def add_spieler(name: str, kuerzel: str):
+    supabase.table("spieler").insert({"name": name, "kuerzel": kuerzel}).execute()
 
 def add_spielabend(datum: str, ort: str, spielart: str):
     res = supabase.table("spielabend").insert({"datum": datum, "ort": ort, "spielart": spielart}).execute()
@@ -277,30 +280,45 @@ div[data-testid="stHorizontalBlock"] {{
     gap: 0.4rem !important;
 }}
 
-/* Spieler-Namen-Buttons (Auswahl statt Emoji-Icons) */
-div[class*="st-key-namebtn_"] button {{
+/* Spieler-Kacheln mit Kuerzel als "Icon" */
+div[class*="st-key-tile_"] button {{
     width: 100% !important;
-    min-height: 50px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-    color: #222 !important;
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    min-height: 60px !important;
+    font-size: 22px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.5px;
+    color: #333 !important;
     background: #ffffff !important;
-    border: 2px solid rgba(0,0,0,0.12) !important;
-    border-radius: 12px !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08) !important;
-    margin: 0 !important;
+    border: 2.5px solid rgba(0,0,0,0.1) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+    margin: 0 auto !important;
 }}
-div[class*="st-key-namebtnsel_"] button {{
+div[class*="st-key-tilesel_"] button {{
     width: 100% !important;
-    min-height: 50px !important;
-    font-size: 15px !important;
-    font-weight: 700 !important;
+    aspect-ratio: 1 / 1 !important;
+    height: auto !important;
+    min-height: 60px !important;
+    font-size: 16px !important;
+    font-weight: 800 !important;
     color: #ffffff !important;
     background: linear-gradient(135deg, #FF6B4A 0%, #E23636 100%) !important;
-    border: 2px solid #E23636 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 2px 6px rgba(226,54,54,0.35) !important;
-    margin: 0 !important;
+    border: 2.5px solid #E23636 !important;
+    border-radius: 16px !important;
+    box-shadow: 0 0 0 3px rgba(226,54,54,0.3) !important;
+    margin: 0 auto !important;
+}}
+
+.player-name {{
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #3A2E1F;
+    margin: 3px 0 8px 0;
+    padding: 0;
+    white-space: nowrap;
 }}
 
 .summary-box {{
@@ -326,9 +344,9 @@ def show_back_button(label="\u2b05\ufe0f Zur\u00fcck", reset_game=False):
         go_to("home", reset_game=reset_game)
         st.rerun()
 
-def player_name_selector(names, session_key, cols_per_row=3):
-    """Zeigt Spielernamen als einfache Auswahl-Buttons (schwarz auf weiss) in Reihen.
-    Klick toggelt Auswahl. Zeigt Auswahlreihenfolge als Nummer im Button-Text."""
+def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4):
+    """Zeigt Spieler als Kachel mit Kuerzel (gross) + Name (klein) darunter.
+    Klick toggelt Auswahl. Zeigt Auswahlreihenfolge als Badge auf dem Kuerzel."""
     if session_key not in st.session_state:
         st.session_state[session_key] = []
 
@@ -340,8 +358,9 @@ def player_name_selector(names, session_key, cols_per_row=3):
         for i, name in enumerate(row_names):
             with cols[i]:
                 selected = name in st.session_state[session_key]
-                key_prefix = "namebtnsel" if selected else "namebtn"
-                label = f"{order[name]}. {name}" if selected else name
+                key_prefix = "tilesel" if selected else "tile"
+                kuerzel = kuerzel_map.get(name, name[:2].upper())
+                label = f"{order[name]} \u00b7 {kuerzel}" if selected else kuerzel
                 with st.container(key=f"{key_prefix}_{session_key}_{name}"):
                     if st.button(label, key=f"btn_{session_key}_{name}"):
                         if selected:
@@ -349,6 +368,7 @@ def player_name_selector(names, session_key, cols_per_row=3):
                         else:
                             st.session_state[session_key].append(name)
                         st.rerun()
+                st.markdown(f'<p class="player-name">{name}</p>', unsafe_allow_html=True)
 
     if st.session_state[session_key]:
         reihenfolge_text = " \u2192 ".join(
@@ -460,7 +480,8 @@ elif st.session_state.page == "neues_spiel":
             st.markdown("<p style='font-weight:600; text-align:center;'>Wer spielt mit?</p>", unsafe_allow_html=True)
             st.caption("Tippe auf die Spieler in der Reihenfolge, wie ihr sitzt (im Uhrzeigersinn).")
 
-            teilnehmer = player_name_selector(spieler_df["name"].tolist(), "teilnehmer_auswahl", cols_per_row=3)
+            kuerzel_map = dict(zip(spieler_df["name"], spieler_df["kuerzel"]))
+            teilnehmer = player_name_selector(spieler_df["name"].tolist(), kuerzel_map, "teilnehmer_auswahl", cols_per_row=4)
             st.session_state.teilnehmer = teilnehmer
 
             ort = st.text_input("Ort (optional)", "")
@@ -546,7 +567,9 @@ elif st.session_state.page == "neues_spiel":
                                      key="punktwert_manual", disabled=bereits_gespeichert)
 
         st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3C6 Wer hat gewonnen?</p>", unsafe_allow_html=True)
-        gewinner = player_name_selector(teilnehmer, "gewinner_auswahl", cols_per_row=3) if not bereits_gespeichert else st.session_state.gewinner_auswahl
+        spieler_df_aw = load_spieler()
+        kuerzel_map_aw = dict(zip(spieler_df_aw["name"], spieler_df_aw["kuerzel"]))
+        gewinner = player_name_selector(teilnehmer, kuerzel_map_aw, "gewinner_auswahl", cols_per_row=4) if not bereits_gespeichert else st.session_state.gewinner_auswahl
         if bereits_gespeichert:
             st.write(", ".join(gewinner) if gewinner else "-")
 
@@ -557,7 +580,7 @@ elif st.session_state.page == "neues_spiel":
         st.markdown("<p style='font-weight:600; text-align:center; margin-top:1rem;'>\U0001F614 Wer hat verloren?</p>", unsafe_allow_html=True)
         verlierer_optionen = [t for t in teilnehmer if t not in gewinner]
         if not bereits_gespeichert:
-            verlierer = player_name_selector(verlierer_optionen, "verlierer_auswahl", cols_per_row=3)
+            verlierer = player_name_selector(verlierer_optionen, kuerzel_map_aw, "verlierer_auswahl", cols_per_row=4)
             verlierer = [t for t in verlierer if t in verlierer_optionen]
         else:
             verlierer = st.session_state.verlierer_auswahl
@@ -710,12 +733,21 @@ elif st.session_state.page == "spieler":
     st.markdown("<h2>\U0001F465 Spieler verwalten</h2>", unsafe_allow_html=True)
 
     st.markdown('<div class="card-box">', unsafe_allow_html=True)
-    neuer_name = st.text_input("Neuen Spieler hinzuf\u00fcgen", label_visibility="collapsed", placeholder="Name eingeben...")
+    st.markdown("<p style='font-weight:600; text-align:center;'>Neuen Spieler hinzuf\u00fcgen</p>", unsafe_allow_html=True)
+    col_name, col_kuerzel = st.columns([2, 1])
+    with col_name:
+        neuer_name = st.text_input("Name", placeholder="z.B. Max", key="neuer_spieler_name")
+    with col_kuerzel:
+        neues_kuerzel = st.text_input("K\u00fcrzel", placeholder="z.B. MM", max_chars=4, key="neuer_spieler_kuerzel")
     if st.button("\u2795  Spieler hinzuf\u00fcgen", key="btn_add_spieler"):
-        if neuer_name.strip():
+        if not neuer_name.strip():
+            st.error("Bitte einen Namen eingeben.")
+        elif not neues_kuerzel.strip():
+            st.error("Bitte ein K\u00fcrzel eingeben.")
+        else:
             with st.spinner("F\u00fcge Spieler hinzu..."):
-                add_spieler(neuer_name.strip())
-            st.success(f"{neuer_name} hinzugef\u00fcgt!")
+                add_spieler(neuer_name.strip(), neues_kuerzel.strip().upper())
+            st.success(f"{neuer_name} ({neues_kuerzel.strip().upper()}) hinzugef\u00fcgt!")
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -724,14 +756,16 @@ elif st.session_state.page == "spieler":
         st.markdown('<div class="card-box">', unsafe_allow_html=True)
         st.markdown("<p style='font-weight:600; text-align:center;'>Aktuelle Spielerliste</p>", unsafe_allow_html=True)
         names = spieler_df["name"].tolist()
-        cols_per_row = 3
+        kuerzel_map_liste = dict(zip(spieler_df["name"], spieler_df["kuerzel"]))
+        cols_per_row = 4
         for row_start in range(0, len(names), cols_per_row):
             row_names = names[row_start:row_start + cols_per_row]
             cols = st.columns(cols_per_row)
             for i, name in enumerate(row_names):
                 with cols[i]:
-                    with st.container(key=f"namebtn_liste_{name}"):
-                        st.button(name, key=f"nameonly_{name}", disabled=True)
+                    with st.container(key=f"tile_liste_{name}"):
+                        st.button(kuerzel_map_liste.get(name, name[:2].upper()), key=f"nameonly_{name}", disabled=True)
+                    st.markdown(f"<p class='player-name'>{name}</p>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
 
     with st.expander("\u26A0\uFE0F Testdaten zur\u00fccksetzen"):
