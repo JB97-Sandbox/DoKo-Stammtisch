@@ -418,7 +418,7 @@ def show_back_button(label="\u2b05\ufe0f Zur\u00fcck", reset_game=False):
         go_to("home", reset_game=reset_game)
         st.rerun()
 
-def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4):
+def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4, show_reihenfolge=True):
     """Zeigt Spieler als Kachel mit Kuerzel (gross) + Name (klein) darunter.
     Klick toggelt Auswahl. Zeigt Auswahlreihenfolge als Badge auf dem Kuerzel."""
     if session_key not in st.session_state:
@@ -444,7 +444,7 @@ def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4):
                         st.rerun()
                 st.markdown(f'<p class="player-name">{name}</p>', unsafe_allow_html=True)
 
-    if st.session_state[session_key]:
+    if show_reihenfolge and st.session_state[session_key]:
         reihenfolge_text = " \u2192 ".join(
             f"{idx+1}. {n}" for idx, n in enumerate(st.session_state[session_key])
         )
@@ -621,6 +621,7 @@ elif st.session_state.page == "neues_spiel":
     elif st.session_state.phase == "spiel_auswertung":
         teilnehmer = st.session_state.teilnehmer
         geber = teilnehmer[st.session_state.geber_index]
+        ist_skat = st.session_state.spielart == "Skat"
 
         bereits_gespeichert = st.session_state.runde_nr in st.session_state.gespeicherte_runden
 
@@ -631,81 +632,173 @@ elif st.session_state.page == "neues_spiel":
         if "punktwert_manual" not in st.session_state:
             st.session_state.punktwert_manual = 0
 
-        st.markdown("<p style='font-weight:600; text-align:center;'>Punktwert des Spiels</p>", unsafe_allow_html=True)
-        quick_cols = st.columns(len(QUICK_PUNKTWERTE))
-        for i, val in enumerate(QUICK_PUNKTWERTE):
-            with quick_cols[i]:
-                active = st.session_state.punktwert_manual == val
-                key_prefix = "quickptactive" if active else "quickpt"
-                with st.container(key=f"{key_prefix}_{val}"):
-                    if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
-                        st.session_state.punktwert_manual = val
-                        st.rerun()
-
-        punktwert = st.number_input("Oder eigenen Wert eingeben", min_value=0, step=1,
-                                     key="punktwert_manual", disabled=bereits_gespeichert)
-
-        st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3C6 Wer hat gewonnen?</p>", unsafe_allow_html=True)
         spieler_df_aw = load_spieler()
         kuerzel_map_aw = dict(zip(spieler_df_aw["name"], spieler_df_aw["kuerzel"]))
-        gewinner = player_name_selector(teilnehmer, kuerzel_map_aw, "gewinner_auswahl", cols_per_row=4) if not bereits_gespeichert else st.session_state.gewinner_auswahl
-        if bereits_gespeichert:
-            st.write(", ".join(gewinner) if gewinner else "-")
 
-        for name in list(st.session_state.verlierer_auswahl):
-            if name in st.session_state.gewinner_auswahl:
-                st.session_state.verlierer_auswahl.remove(name)
+        if ist_skat:
+            aktive_spieler = [t for t in teilnehmer if t != geber] if len(teilnehmer) == 4 else list(teilnehmer)
 
-        st.markdown("<p style='font-weight:600; text-align:center; margin-top:1rem;'>\U0001F614 Wer hat verloren?</p>", unsafe_allow_html=True)
-        verlierer_optionen = [t for t in teilnehmer if t not in gewinner]
-        if not bereits_gespeichert:
-            verlierer = player_name_selector(verlierer_optionen, kuerzel_map_aw, "verlierer_auswahl", cols_per_row=4)
-            verlierer = [t for t in verlierer if t in verlierer_optionen]
-        else:
-            verlierer = st.session_state.verlierer_auswahl
-            st.write(", ".join(verlierer) if verlierer else "-")
+            st.markdown("<p style='font-weight:600; text-align:center;'>Spielwert (Grundwert x Multiplikator)</p>", unsafe_allow_html=True)
+            quick_cols = st.columns(len(QUICK_PUNKTWERTE))
+            for i, val in enumerate(QUICK_PUNKTWERTE):
+                with quick_cols[i]:
+                    active = st.session_state.punktwert_manual == val
+                    key_prefix = "quickptactive" if active else "quickpt"
+                    with st.container(key=f"{key_prefix}_{val}"):
+                        if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
+                            st.session_state.punktwert_manual = val
+                            st.rerun()
 
-        if not bereits_gespeichert and (gewinner or verlierer):
-            gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner) if gewinner else "-"
-            verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer) if verlierer else "-"
-            st.markdown(
-                f'<div class="summary-box">'
-                f'<b>Vorschau:</b> \U0001F3C6 {gew_text} &nbsp;|&nbsp; \U0001F614 {verl_text}'
-                f'</div>',
-                unsafe_allow_html=True
-            )
+            punktwert = st.number_input("Oder eigenen Spielwert eingeben", min_value=0, step=1,
+                                         key="punktwert_manual", disabled=bereits_gespeichert)
 
-        col_save, col_back = st.columns(2)
-        with col_save:
-            if st.button("\U0001F4BE  Speichern", key="btn_speichern", disabled=bereits_gespeichert):
-                if not gewinner or not verlierer:
-                    st.error("Bitte mindestens einen Gewinner und einen Verlierer ausw\u00e4hlen.")
-                else:
-                    gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner)
-                    verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer)
-                    with st.spinner("Speichere Ergebnis..."):
-                        spieler_df = load_spieler()
-                        id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
-                        spiel_id = add_spiel(st.session_state.abend_id, st.session_state.runde_nr, geber, int(punktwert))
-                        for name in gewinner:
-                            add_ergebnis(spiel_id, int(id_map[name]), int(punktwert))
-                        for name in verlierer:
-                            add_ergebnis(spiel_id, int(id_map[name]), -int(punktwert))
-                        for name in teilnehmer:
-                            if name not in gewinner and name not in verlierer:
-                                add_ergebnis(spiel_id, int(id_map[name]), 0)
-                    st.session_state.letztes_spiel_id = spiel_id
-                    st.session_state.letzte_zusammenfassung = f"Runde {st.session_state.runde_nr}: \U0001F3C6 {gew_text} | \U0001F614 {verl_text}"
-                    st.session_state.gespeicherte_runden.add(st.session_state.runde_nr)
-                    save_live_state()
-                    st.success("Ergebnis gespeichert!")
-                    st.rerun()
-        with col_back:
-            if st.button("\u21a9\ufe0f  Zur\u00fcck", key="btn_zurueck_zu_spiel", disabled=bereits_gespeichert):
-                st.session_state.phase = "spiel_laeuft"
-                st.session_state.gewinner_auswahl = []
-                st.session_state.verlierer_auswahl = []
+            st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3AF Wer war Alleinspieler?</p>", unsafe_allow_html=True)
+            if "alleinspieler_auswahl" not in st.session_state:
+                st.session_state.alleinspieler_auswahl = []
+            alleinspieler_liste = player_name_selector(aktive_spieler, kuerzel_map_aw, "alleinspieler_auswahl", cols_per_row=4, show_reihenfolge=False) if not bereits_gespeichert else st.session_state.alleinspieler_auswahl
+            if len(alleinspieler_liste) > 1:
+                st.session_state.alleinspieler_auswahl = alleinspieler_liste[-1:]
                 st.rerun()
+            alleinspieler = alleinspieler_liste[0] if alleinspieler_liste else None
+            if bereits_gespeichert:
+                st.write(alleinspieler or "-")
+
+            st.markdown("<p style='font-weight:600; text-align:center; margin-top:1rem;'>Ergebnis des Alleinspielers</p>", unsafe_allow_html=True)
+            col_gewonnen, col_verloren = st.columns(2)
+            if "alleinspieler_gewonnen" not in st.session_state:
+                st.session_state.alleinspieler_gewonnen = True
+            with col_gewonnen:
+                active_g = st.session_state.alleinspieler_gewonnen
+                with st.container(key="tile_skat_gewonnen" if active_g else "tile_skat_gewonnen_off"):
+                    if st.button("\U0001F3C6  Gewonnen", key="btn_skat_gewonnen", disabled=bereits_gespeichert):
+                        st.session_state.alleinspieler_gewonnen = True
+                        st.rerun()
+            with col_verloren:
+                active_v = not st.session_state.alleinspieler_gewonnen
+                with st.container(key="tile_skat_verloren" if active_v else "tile_skat_verloren_off"):
+                    if st.button("\U0001F614  Verloren", key="btn_skat_verloren", disabled=bereits_gespeichert):
+                        st.session_state.alleinspieler_gewonnen = False
+                        st.rerun()
+
+            gewonnen_flag = st.session_state.alleinspieler_gewonnen
+            gegenspieler = [t for t in aktive_spieler if t != alleinspieler]
+
+            if alleinspieler:
+                if gewonnen_flag:
+                    punkte_alleinspieler = int(punktwert)
+                else:
+                    punkte_alleinspieler = -(2 * int(punktwert))
+            else:
+                punkte_alleinspieler = 0
+
+            if not bereits_gespeichert and alleinspieler:
+                st.markdown(
+                    f'<div class="summary-box">'
+                    f'<b>Vorschau:</b> \U0001F3AF {alleinspieler} {"+" if punkte_alleinspieler >= 0 else ""}{punkte_alleinspieler}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+
+            col_save, col_back = st.columns(2)
+            with col_save:
+                if st.button("\U0001F4BE  Speichern", key="btn_speichern", disabled=bereits_gespeichert):
+                    if not alleinspieler:
+                        st.error("Bitte einen Alleinspieler ausw\u00e4hlen.")
+                    else:
+                        with st.spinner("Speichere Ergebnis..."):
+                            spieler_df = load_spieler()
+                            id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
+                            spiel_id = add_spiel(st.session_state.abend_id, st.session_state.runde_nr, geber, int(punktwert))
+                            add_ergebnis(spiel_id, int(id_map[alleinspieler]), int(punkte_alleinspieler))
+                            for name in teilnehmer:
+                                if name != alleinspieler:
+                                    add_ergebnis(spiel_id, int(id_map[name]), 0)
+                        st.session_state.letztes_spiel_id = spiel_id
+                        st.session_state.letzte_zusammenfassung = f"Runde {st.session_state.runde_nr}: \U0001F3AF {alleinspieler} {'+' if punkte_alleinspieler >= 0 else ''}{punkte_alleinspieler}"
+                        st.session_state.gespeicherte_runden.add(st.session_state.runde_nr)
+                        save_live_state()
+                        st.success("Ergebnis gespeichert!")
+                        st.rerun()
+            with col_back:
+                if st.button("\u21a9\ufe0f  Zur\u00fcck", key="btn_zurueck_zu_spiel", disabled=bereits_gespeichert):
+                    st.session_state.phase = "spiel_laeuft"
+                    st.session_state.alleinspieler_auswahl = []
+                    st.rerun()
+
+        else:
+            st.markdown("<p style='font-weight:600; text-align:center;'>Punktwert des Spiels</p>", unsafe_allow_html=True)
+            quick_cols = st.columns(len(QUICK_PUNKTWERTE))
+            for i, val in enumerate(QUICK_PUNKTWERTE):
+                with quick_cols[i]:
+                    active = st.session_state.punktwert_manual == val
+                    key_prefix = "quickptactive" if active else "quickpt"
+                    with st.container(key=f"{key_prefix}_{val}"):
+                        if st.button(str(val), key=f"quickbtn_{val}", disabled=bereits_gespeichert):
+                            st.session_state.punktwert_manual = val
+                            st.rerun()
+
+            punktwert = st.number_input("Oder eigenen Wert eingeben", min_value=0, step=1,
+                                         key="punktwert_manual", disabled=bereits_gespeichert)
+
+            st.markdown("<p style='font-weight:600; text-align:center; margin-top:0.5rem;'>\U0001F3C6 Wer hat gewonnen?</p>", unsafe_allow_html=True)
+            gewinner = player_name_selector(teilnehmer, kuerzel_map_aw, "gewinner_auswahl", cols_per_row=4, show_reihenfolge=False) if not bereits_gespeichert else st.session_state.gewinner_auswahl
+            if bereits_gespeichert:
+                st.write(", ".join(gewinner) if gewinner else "-")
+
+            for name in list(st.session_state.verlierer_auswahl):
+                if name in st.session_state.gewinner_auswahl:
+                    st.session_state.verlierer_auswahl.remove(name)
+
+            st.markdown("<p style='font-weight:600; text-align:center; margin-top:1rem;'>\U0001F614 Wer hat verloren?</p>", unsafe_allow_html=True)
+            verlierer_optionen = [t for t in teilnehmer if t not in gewinner]
+            if not bereits_gespeichert:
+                verlierer = player_name_selector(verlierer_optionen, kuerzel_map_aw, "verlierer_auswahl", cols_per_row=4, show_reihenfolge=False)
+                verlierer = [t for t in verlierer if t in verlierer_optionen]
+            else:
+                verlierer = st.session_state.verlierer_auswahl
+                st.write(", ".join(verlierer) if verlierer else "-")
+
+            if not bereits_gespeichert and (gewinner or verlierer):
+                gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner) if gewinner else "-"
+                verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer) if verlierer else "-"
+                st.markdown(
+                    f'<div class="summary-box">'
+                    f'<b>Vorschau:</b> \U0001F3C6 {gew_text} &nbsp;|&nbsp; \U0001F614 {verl_text}'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+
+            col_save, col_back = st.columns(2)
+            with col_save:
+                if st.button("\U0001F4BE  Speichern", key="btn_speichern", disabled=bereits_gespeichert):
+                    if not gewinner or not verlierer:
+                        st.error("Bitte mindestens einen Gewinner und einen Verlierer ausw\u00e4hlen.")
+                    else:
+                        gew_text = ", ".join(f"{n} +{int(punktwert)}" for n in gewinner)
+                        verl_text = ", ".join(f"{n} -{int(punktwert)}" for n in verlierer)
+                        with st.spinner("Speichere Ergebnis..."):
+                            spieler_df = load_spieler()
+                            id_map = dict(zip(spieler_df["name"], spieler_df["id"]))
+                            spiel_id = add_spiel(st.session_state.abend_id, st.session_state.runde_nr, geber, int(punktwert))
+                            for name in gewinner:
+                                add_ergebnis(spiel_id, int(id_map[name]), int(punktwert))
+                            for name in verlierer:
+                                add_ergebnis(spiel_id, int(id_map[name]), -int(punktwert))
+                            for name in teilnehmer:
+                                if name not in gewinner and name not in verlierer:
+                                    add_ergebnis(spiel_id, int(id_map[name]), 0)
+                        st.session_state.letztes_spiel_id = spiel_id
+                        st.session_state.letzte_zusammenfassung = f"Runde {st.session_state.runde_nr}: \U0001F3C6 {gew_text} | \U0001F614 {verl_text}"
+                        st.session_state.gespeicherte_runden.add(st.session_state.runde_nr)
+                        save_live_state()
+                        st.success("Ergebnis gespeichert!")
+                        st.rerun()
+            with col_back:
+                if st.button("\u21a9\ufe0f  Zur\u00fcck", key="btn_zurueck_zu_spiel", disabled=bereits_gespeichert):
+                    st.session_state.phase = "spiel_laeuft"
+                    st.session_state.gewinner_auswahl = []
+                    st.session_state.verlierer_auswahl = []
+                    st.rerun()
 
         aw_box.__exit__(None, None, None)
 
@@ -721,6 +814,7 @@ elif st.session_state.page == "neues_spiel":
                     st.session_state.phase = "spiel_laeuft"
                     st.session_state.gewinner_auswahl = []
                     st.session_state.verlierer_auswahl = []
+                    st.session_state.alleinspieler_auswahl = []
                     if "punktwert_manual" in st.session_state:
                         del st.session_state["punktwert_manual"]
                     save_live_state()
@@ -729,6 +823,7 @@ elif st.session_state.page == "neues_spiel":
                 if st.button("\U0001F3C1  Abend beenden", key="btn_naechstes_nein"):
                     st.session_state.gewinner_auswahl = []
                     st.session_state.verlierer_auswahl = []
+                    st.session_state.alleinspieler_auswahl = []
                     st.session_state.abend_beendet_ansicht = True
                     st.rerun()
 
