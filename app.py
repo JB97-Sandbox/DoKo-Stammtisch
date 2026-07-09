@@ -346,6 +346,18 @@ div[data-testid="stAlert"] {{
 
 div[data-testid="stHorizontalBlock"] {{
     gap: 0.4rem !important;
+    flex-wrap: nowrap !important;
+    flex-direction: row !important;
+}}
+div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {{
+    flex: 1 1 0 !important;
+    width: auto !important;
+    min-width: 0 !important;
+}}
+@media (max-width: 480px) {{
+    div[data-testid="stHorizontalBlock"] {{
+        gap: 0.25rem !important;
+    }}
 }}
 
 /* Spieler-Kacheln mit Kuerzel als "Icon" */
@@ -398,29 +410,29 @@ div[class*="st-key-tilesel_"] button p {{
     margin: 2px auto 4px auto !important;
 }}
 
-/* Kompakte Spieler-Kacheln fuer lange Listen (z.B. Teilnehmerauswahl) */
+/* Kompakte Spieler-Kacheln fuer lange Listen (z.B. Teilnehmerauswahl, ohne Namen darunter) */
+div[class*="_cpt"] {{
+    margin-bottom: 0.4rem !important;
+}}
 div[class*="_cpt"] button {{
-    min-height: 46px !important;
+    min-height: 60px !important;
     aspect-ratio: 1 / 1 !important;
-    border-radius: 12px !important;
+    border-radius: 14px !important;
 }}
 div[class*="_cpt"] button p {{
-    font-size: 20px !important;
+    font-size: 26px !important;
     font-weight: 800 !important;
 }}
 div[class*="st-key-tilesel_"][class*="_cpt"] button p {{
-    font-size: 14px !important;
+    font-size: 17px !important;
 }}
 
 @media (max-width: 480px) {{
     div[class*="_cpt"] button {{
-        min-height: 40px !important;
+        min-height: 52px !important;
     }}
     div[class*="_cpt"] button p {{
-        font-size: 17px !important;
-    }}
-    .player-name-compact {{
-        font-size: 9.5px !important;
+        font-size: 21px !important;
     }}
 }}
 
@@ -616,8 +628,8 @@ def show_back_button(label="\u2b05\ufe0f Zur\u00fcck", reset_game=False):
         go_to("home", reset_game=reset_game)
         st.rerun()
 
-def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4, show_reihenfolge=True, compact=False):
-    """Zeigt Spieler als Kachel mit Kuerzel (gross) + Name (klein) darunter.
+def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4, show_reihenfolge=True, compact=False, show_names=True):
+    """Zeigt Spieler als Kachel mit Kuerzel (gross) + optional Name (klein) darunter.
     Klick toggelt Auswahl. Zeigt Auswahlreihenfolge als Badge auf dem Kuerzel."""
     if session_key not in st.session_state:
         st.session_state[session_key] = []
@@ -635,13 +647,14 @@ def player_name_selector(names, kuerzel_map, session_key, cols_per_row=4, show_r
                 kuerzel = kuerzel_map.get(name, name[:2].upper())
                 label = f"{order[name]} \u00b7 {kuerzel}" if selected else kuerzel
                 with st.container(key=f"{key_prefix}_{session_key}_{name}{compact_suffix}"):
-                    if st.button(label, key=f"btn_{session_key}_{name}"):
+                    if st.button(label, key=f"btn_{session_key}_{name}", help=name if not show_names else None):
                         if selected:
                             st.session_state[session_key].remove(name)
                         else:
                             st.session_state[session_key].append(name)
                         st.rerun()
-                st.markdown(f'<p class="player-name{" player-name-compact" if compact else ""}">{name}</p>', unsafe_allow_html=True)
+                if show_names:
+                    st.markdown(f'<p class="player-name{" player-name-compact" if compact else ""}">{name}</p>', unsafe_allow_html=True)
 
     if show_reihenfolge and st.session_state[session_key]:
         reihenfolge_text = " \u2192 ".join(
@@ -782,7 +795,7 @@ elif st.session_state.page == "neues_spiel":
             st.caption("Tippe auf die Spieler in der Reihenfolge, wie ihr sitzt (im Uhrzeigersinn).")
 
             kuerzel_map = dict(zip(spieler_df["name"], spieler_df["kuerzel"]))
-            teilnehmer = player_name_selector(spieler_df["name"].tolist(), kuerzel_map, "teilnehmer_auswahl", cols_per_row=5, compact=True)
+            teilnehmer = player_name_selector(spieler_df["name"].tolist(), kuerzel_map, "teilnehmer_auswahl", cols_per_row=4, compact=True, show_names=False)
             st.session_state.teilnehmer = teilnehmer
 
             ort = st.text_input("Ort (optional)", "")
